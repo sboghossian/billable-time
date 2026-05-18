@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.log
+
+# Lawyer-specific drafts produced by the CLI should stay local.
+# The committed sample-draft.md is intentional; ignore everything else.
+out/*
+!out/sample-draft.md

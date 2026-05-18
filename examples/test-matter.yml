@@ -1,0 +1,16 @@
+matter:
+  id: "TEST-001"
+  client: "Demo Client"
+  caption: "Test Matter (billable-time dry run)"
+  jurisdiction: "CT"
+  practice_area: "general"
+billing:
+  rate_per_hour: 450
+  rounding: "nearest_tenth"
+  minimum_increment_hours: 0.1
+ethics:
+  ai_disclosure_required: true
+  disclosure_text: "Drafting assisted by AI; reviewed and adopted by attorney of record."
+routes:
+  - "/Users/stephanemacmini"
+  - "/Users/stephanemacmini/Documents/Code/billable-time"

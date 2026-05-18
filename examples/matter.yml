@@ -1,0 +1,24 @@
+# billable-time — matter routing example
+# Place a matter.yml at the root of each matter directory.
+# The CLI walks up from cwd looking for matter.yml.
+
+matter:
+  id: "2026-0427" # Clio matter ID
+  client: "Acme Holdings Ltd"
+  caption: "Acme v. Smith"
+  jurisdiction: "CT" # ISO-ish; controls disclosure rules
+  practice_area: "litigation"
+
+billing:
+  rate_per_hour: 450 # informational; rounding still per Clio (0.1h)
+  rounding: "nearest_tenth"
+  minimum_increment_hours: 0.1
+
+ethics:
+  ai_disclosure_required: true # CT, MA, NJ have opinions out → default true
+  disclosure_text: "Drafting assisted by AI; reviewed and adopted by attorney of record."
+
+# Optional: path prefixes that route to this matter.
+# If omitted, the matter.yml's own directory is used.
+routes:
+  - "~/Documents/Matters/acme-v-smith"
