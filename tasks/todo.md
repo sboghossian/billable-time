@@ -1,51 +1,109 @@
 # billable-time — todo
 
-## v1 prototype (happy path) — DONE
+## v0.1 — DONE
 
-- [x] Scaffold project (tasks, matter example, README)
-- [x] `draft-entries.mjs` — Node CLI
-  - [x] Parse JSONL session log (user + assistant + tool_use events)
-  - [x] Cluster events into "active intervals" (gap > 5 min closes an interval)
-  - [x] Group by matter via `matter.yml` (cwd-prefix match)
-  - [x] Compute duration (rounded to 0.1h Clio convention)
-  - [x] Synthesize neutral narrative from prompts + tools used
-  - [x] Flag AI-disclosure per entry
-  - [x] Markdown diff output (accept/edit/reject rows)
-  - [x] Excluded-summary block (long idle gaps, off-matter, trivial)
-- [x] Dry-run on real session logs → `out/sample-draft.md`
-- [x] README with usage + ethics note
+- [x] CLI prototype with deterministic narrative, cwd-prefix routing, sample dry-run
+- [x] Self-contained browser port (`web/index.html`)
+- [x] Public GitHub repo + AGPL-3.0
+- [x] Lawvable skill package at `~/.claude/skills/billable-time/`
+- [x] Lovable scaffolding brief at `web/LOVABLE_PROMPT.md`
+- [x] Artifact-credibility fixes: tool-shape narrative default, broad-route warning banner
 
-## Artifact-credibility fixes (done 2026-05-18)
+## v0.2.0 — true-to-purpose audit-defense rewrite (SHIPPED 2026-05-18)
 
-The 2026-05-17 dry-run exposed two issues a lawyer would catch immediately:
+**Polestar:** every change sharpens "this is the artifact that survives a bar grievance asking _show me how you billed AI-assisted work._"
 
-- [x] **Strip verbatim prompt text from narrative by default** — `--include-prompt-snippet`
-      added as opt-in. Default narrative is tool-shape only.
-- [x] **Broad-route warning banner** — `checkRoutes()` flags routes that equal
-      `$HOME` or `/`. Warning appears under the title in the generated artifact.
-      The metadata line also exposes the prompt-snippet setting so reviewers see
-      the verbosity level.
-- [x] Regenerate `out/sample-draft.md` with the fixes.
+### Phase A — cryptographic chain of evidence (DONE)
 
-## Distribution
+- [x] SHA-256 of each source JSONL embedded in artifact
+- [x] SHA-256 of `matter.yml` at generation
+- [x] Artifact self-hash, verifiable by sentinel-replace + re-hash
+- [x] Tool version + UTC timestamp + inline matter.yml snapshot
+- [x] Version bumped to 0.2.0 (CLI, SKILL.md, package.json)
 
-- [x] `git init` + push to `github.com/sboghossian/billable-time` (AGPL-3.0)
-- [x] Self-contained `web/index.html` browser port (no backend, no deps)
-- [x] Paste-ready Lovable brief at `web/LOVABLE_PROMPT.md`
+### Phase B — bar-opinion disclosure pack (DONE)
+
+- [x] `disclosures/aba-512.yml`, `ca-2023.yml`, `fl-24-1.yml`, `ny-2024.yml`, `dc-388.yml`
+- [x] `disclosures/README.md` — verified-by-lawyer contract
+- [x] `matter.yml.ethics.disclosure_pack: <code>` resolves canonical text
+- [x] Pack SHA-256 embedded in artifact
+- [x] Every pack ships `verified: false` — lawyer's job to flip after verifying
+
+### Phase C — disclosure + routing enforcement (DONE)
+
+- [x] `--strict` mode refuses on broad routes, missing attorney, missing disclosure
+- [x] `matter.yml.attorney` schema (`name`, `bar_id`, `bar_jurisdiction`)
+- [x] Pack `verified: false` blocks `--strict` unless `matter.yml` overrides text
+- [x] Placeholder disclosure detection (`TODO`, `[fill in]`, empty)
+
+### Phase D — narrative content layer (DONE)
+
+- [x] Filename verb table (25 patterns: motion, brief, memo, complaint, answer, opposition, reply, order, contract, agreement, letter, exhibit, deposition, affidavit, declaration, discovery, interrogatories, lease, NDA, term sheet, settlement, will, POA, trust, transcript)
+- [x] Directory verb fallback
+- [x] Tool-shape verbs as final fallback
+- [x] Prompt-snippet remains OFF by default (privacy invariant)
+
+### Phase E — audit packet HTML (DONE)
+
+- [x] `<out>.audit.html` companion emitted alongside `<out>.md`
+- [x] Print-ready CSS (letter page, page-break-inside avoid, attorney signature block)
+- [x] Chain of evidence table, source-file hash table, matter.yml snapshot
+- [x] `--no-audit-packet` flag to skip
+
+### Phase F — Excluded section made specific (DONE)
+
+- [x] Off-matter entries cite the exact `routes:` line to add
+- [x] Idle gaps cite duration + start/end + threshold
+- [x] Trivial intervals cite start, prompt count, threshold
+
+### Phase G — README + SKILL.md sharpened (DONE)
+
+- [x] README leads with the legal threat (ABA 512, FL 24-1, CA, NY, DC)
+- [x] Non-negotiable contract section
+- [x] `--strict` mode documented as audit-final pass
+- [x] SKILL.md rewritten in defense mode (hard refusals, pre-flight, refusal-first reporting)
+
+### Phase H — tests (DONE)
+
+- [x] `test/cli.test.mjs` — 15 invariant tests, all green
+- [x] Self-hash reproducibility (the audit-defense bedrock)
+- [x] All `--strict` refusal paths
+- [x] Privacy default (prompt snippet off)
+- [x] Source SHA-256 matches actual file hash
+- [x] Filename verbs fire (motion + affidavit)
+- [x] Audit packet emission and `--no-audit-packet`
+- [x] Strict-clean pass when invariants hold
+- [x] `npm test` script in `package.json` (zero deps)
+
+### Phase I — web port mirrored to v0.2.0 (DONE)
+
+- [x] Hash chain via SubtleCrypto
+- [x] Bundled disclosure packs inline as JS constants
+- [x] Strict-mode toggle in UI
+- [x] Filename + directory verb tables ported
+- [x] Audit packet HTML download alongside .md download
+
+### Phase J — ship (in progress)
+
+- [x] Regenerated `out/sample-draft.md` (broad-route demo)
+- [x] Regenerated `out/sample-draft-strict.md` (strict-clean demo)
+- [x] Both `.audit.html` companions emitted
+- [ ] Commit + push to GitHub
+- [ ] Re-bundle `~/.claude/skills/billable-time/`, re-zip Desktop
+- [ ] Update CONTINUE.md with v0.2.0 shipping notes
+
+## Distribution (still pending from v0.1)
+
 - [ ] Scaffold the Lovable project `732d1712` from the brief (Stephane runs)
-- [ ] `/lawvable-submit` once the Lovable URL is live
 - [ ] LinkedIn post — frame as the audit primitive nobody is building
 
-## Out of scope for v1
+## Out of scope (deferred to v0.3+)
 
-- Clio API integration (markdown diff only)
-- File-contents PII heuristic for matter routing
-- Multi-jurisdiction disclosure rules table
-- LLM-based narrative drafting (use deterministic template; let lawyer edit)
-
-## Open questions (resolve against the running prototype, not in the abstract)
-
-- Idle gap threshold: 5 min, 10 min, configurable? — **currently `--idle-gap-min`, default 5. Probably right.**
-- Narrative voice: "Drafted X / reviewed Y" vs "Researched / analyzed"? — **currently tool-shape verbs. Lock in.**
-- Round to 0.1h up, nearest, or down? — **currently nearest. Clio convention is nearest_tenth.**
-- Should "exploration that didn't ship" be excluded by default or flagged for lawyer review? — **deferred; needs git-touch signal that v1 doesn't have.**
+- Calendar cross-reference (Google/Outlook OAuth)
+- In-session matter chip / slash command
+- Clio API integration
+- Two-pass signoff mode (lawyer-signs-each-row UI)
+- LLM-generated narratives (intentionally never)
+- Multi-matter mode in one run
+- VS Code / Cursor extension
+- File-content PII heuristics for matter routing

@@ -14,6 +14,8 @@
         --warn: #b14a00;
         --warn-bg: #fff4e6;
         --good-bg: #f0f7f0;
+        --refuse: #a00;
+        --refuse-bg: #fdecec;
       }
       * {
         box-sizing: border-box;
@@ -54,6 +56,15 @@
         margin-bottom: 28px;
         border-radius: 0 4px 4px 0;
       }
+      .version-strap {
+        background: #f1f3ff;
+        border-left: 3px solid var(--accent);
+        padding: 8px 14px;
+        font-size: 12.5px;
+        color: #2c2a64;
+        margin-bottom: 14px;
+        border-radius: 0 4px 4px 0;
+      }
       fieldset {
         border: 1px solid var(--line);
         border-radius: 6px;
@@ -75,7 +86,8 @@
       label.row input[type="text"],
       label.row input[type="number"],
       label.row input[type="date"],
-      label.row textarea {
+      label.row textarea,
+      label.row select {
         display: block;
         margin-top: 4px;
         font: inherit;
@@ -106,6 +118,11 @@
         grid-template-columns: 1fr 1fr;
         gap: 12px;
       }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+      }
       button {
         font: inherit;
         font-weight: 600;
@@ -124,11 +141,16 @@
         color: var(--fg);
         border: 1px solid var(--line);
       }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       .actions {
         display: flex;
         gap: 8px;
         align-items: center;
         margin-top: 8px;
+        flex-wrap: wrap;
       }
       .status {
         color: var(--muted);
@@ -169,11 +191,18 @@
         color: var(--warn);
         background: var(--warn-bg);
       }
+      .rendered blockquote.refuse {
+        border-left-color: var(--refuse);
+        color: var(--refuse);
+        background: var(--refuse-bg);
+        font-weight: 600;
+      }
       .rendered code {
         background: #f1f1f1;
         padding: 1px 5px;
         border-radius: 3px;
         font-size: 90%;
+        word-break: break-all;
       }
       .rendered hr {
         border: 0;
@@ -185,6 +214,18 @@
       }
       .rendered li {
         margin: 3px 0;
+      }
+      .rendered pre {
+        background: #f7f7f7;
+        border: 1px solid #ddd;
+        padding: 8px 10px;
+        font:
+          11.5px/1.4 ui-monospace,
+          SF Mono,
+          Menlo,
+          monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
       }
       details summary {
         cursor: pointer;
@@ -219,9 +260,15 @@
   <body>
     <h1>billable-time</h1>
     <p class="lede">
-      Draft reviewable time entries from Claude Code session logs. Lawyer
-      reviews every row. <strong>Never auto-bills.</strong>
+      Cryptographically-stamped, audit-defensible draft time entries from Claude
+      Code session logs. <strong>The tool never auto-bills.</strong>
     </p>
+
+    <div class="version-strap">
+      <strong>v0.2.0</strong> — bar-opinion disclosure pack, SHA-256 chain of
+      evidence, attorney signature block, content-aware deterministic
+      narratives, <code>strict</code> mode.
+    </div>
 
     <div class="strap">
       Your session files never leave this page. All parsing runs in-browser. No
@@ -259,9 +306,16 @@
       <label class="row">
         <textarea
           id="matterTextInput"
-          placeholder="matter:&#10;  id: 2026-0427&#10;  client: Acme Holdings Ltd&#10;  caption: Acme v. Smith&#10;  jurisdiction: CT&#10;billing:&#10;  rate_per_hour: 450&#10;  minimum_increment_hours: 0.1&#10;ethics:&#10;  ai_disclosure_required: true&#10;  disclosure_text: Drafting assisted by AI; reviewed and adopted by attorney of record.&#10;routes:&#10;  - /Users/you/Documents/Matters/acme-v-smith"
+          placeholder="matter:&#10;  id: 2026-0427&#10;  client: Acme Holdings Ltd&#10;  caption: Acme v. Smith&#10;  jurisdiction: FL&#10;attorney:&#10;  name: Jane Doe&#10;  bar_id: FL-1234567&#10;  bar_jurisdiction: FL&#10;billing:&#10;  rate_per_hour: 450&#10;  minimum_increment_hours: 0.1&#10;ethics:&#10;  ai_disclosure_required: true&#10;  disclosure_pack: fl-24-1&#10;  # disclosure_text: ~  (uncomment to override pack canonical)&#10;routes:&#10;  - /Users/you/Documents/Matters/acme-v-smith"
         ></textarea>
       </label>
+      <p class="hint">
+        Disclosure packs bundled: <code>aba-512</code>, <code>ca-2023</code>,
+        <code>fl-24-1</code>, <code>ny-2024</code>, <code>dc-388</code>. Every
+        pack ships <code>verified: false</code> — flip it in your local copy
+        after reading the source opinion. In strict mode, an unverified pack
+        with no <code>disclosure_text</code> override is refused.
+      </p>
     </fieldset>
 
     <fieldset>
@@ -284,6 +338,14 @@
           </span>
         </label>
       </div>
+      <div style="margin-top: 12px">
+        <label class="inline">
+          <input type="checkbox" id="strictInput" />
+          <strong>Strict mode</strong> — refuse to generate if any audit
+          invariant fails (broad routes, missing attorney, missing disclosure,
+          unverified pack)
+        </label>
+      </div>
       <p class="hint">
         Prompt snippets <strong>off by default</strong> — Claude history shared
         across matters can leak. Only enable on a single-matter machine.
@@ -292,7 +354,12 @@
 
     <div class="actions">
       <button id="generateBtn">Generate draft</button>
-      <button id="downloadBtn" class="secondary" disabled>Download .md</button>
+      <button id="downloadMdBtn" class="secondary" disabled>
+        Download .md
+      </button>
+      <button id="downloadAuditBtn" class="secondary" disabled>
+        Download .audit.html
+      </button>
       <span id="status" class="status"></span>
     </div>
     <div id="errorBox" class="error" hidden></div>
@@ -307,7 +374,234 @@
     </div>
 
     <script type="module">
-      // ---------- pure logic (ported from draft-entries.mjs) ----------
+      // ============================================================================
+      // billable-time web port — v0.2.0
+      // Mirrors draft-entries.mjs. Logic is intentionally a port of the same pure
+      // functions so the artifact is reproducible whether you run the CLI or the
+      // browser.
+      // ============================================================================
+
+      const TOOL_NAME = "billable-time";
+      const TOOL_VERSION = "0.2.0";
+      const SELF_HASH_SENTINEL = "PENDING_SELF_HASH_REPLACE_AT_RENDER";
+
+      // ---------- bundled disclosure packs (mirror of disclosures/*.yml) ----------
+
+      const DISCLOSURE_PACKS = {
+        "aba-512": {
+          jurisdiction: "ABA Model (non-binding)",
+          opinion: "ABA Formal Opinion 512",
+          date: "2024-07-29",
+          source_url:
+            "https://www.americanbar.org/content/dam/aba/administrative/professional_responsibility/ethics-opinions/aba-formal-opinion-512.pdf",
+          verified: false,
+          canonical_disclosure_text:
+            "Generative artificial intelligence tools were used in the preparation of certain matter-related work product under attorney supervision. The attorney of record reviewed the AI-assisted output, exercised independent professional judgment, and adopted the final work product as the attorney's own. The time billed reflects actual attorney time spent on this matter; no markup has been applied for AI-assisted efficiency.",
+        },
+        "ca-2023": {
+          jurisdiction: "California (State Bar)",
+          opinion:
+            "Practical Guidance for the Use of Generative Artificial Intelligence in the Practice of Law",
+          date: "2023-11-16",
+          source_url:
+            "https://www.calbar.ca.gov/Portals/0/documents/ethics/Generative-AI-Practical-Guidance.pdf",
+          verified: false,
+          canonical_disclosure_text:
+            "Generative artificial intelligence tools were used in connection with preparing certain work product on this matter. Consistent with California Rules of Professional Conduct 1.1, 1.3, 1.5, and 1.6, the attorney of record verified the AI-assisted output, exercised independent professional judgment, and adopted the final work product as the attorney's own. The time billed reflects actual attorney time. No markup has been applied for AI-assisted efficiency.",
+        },
+        "fl-24-1": {
+          jurisdiction: "Florida (The Florida Bar)",
+          opinion: "Florida Bar Ethics Opinion 24-1",
+          date: "2024-01-19",
+          source_url: "https://www.floridabar.org/etopinions/etopinion-24-1/",
+          verified: false,
+          canonical_disclosure_text:
+            "Generative artificial intelligence tools were used in the preparation of certain work product on this matter, under the supervision of the attorney of record. Consistent with Florida Rules Regulating The Florida Bar 4-1.1, 4-1.5, 4-1.6, 4-5.1, and 4-5.3, the attorney verified the AI-assisted output, exercised independent professional judgment, and adopted the final work product as the attorney's own. The time billed reflects actual attorney time spent on the matter. No markup has been applied for AI-assisted efficiency.",
+        },
+        "ny-2024": {
+          jurisdiction: "New York (NYSBA / NYCBA)",
+          opinion:
+            "NYSBA Task Force on AI Report (Apr 2024); NYCBA Formal Opinion 2024-5",
+          date: "2024-04-06",
+          source_url:
+            "https://nysba.org/app/uploads/2022/03/2024-April-Report-and-Recommendations-of-the-Task-Force-on-Artificial-Intelligence.pdf",
+          verified: false,
+          canonical_disclosure_text:
+            "Generative artificial intelligence tools were used in the preparation of certain work product on this matter, under the supervision of the attorney of record. Consistent with the New York Rules of Professional Conduct (including Rules 1.1, 1.3, 1.4, 1.5, 1.6, 3.3, 5.1, and 5.3), the attorney verified the AI-assisted output, exercised independent professional judgment, and adopted the final work product as the attorney's own. The time billed reflects actual attorney time. No markup has been applied for AI-assisted efficiency.",
+        },
+        "dc-388": {
+          jurisdiction: "District of Columbia (DC Bar)",
+          opinion: "DC Bar Ethics Opinion 388",
+          date: "2024-04-30",
+          source_url:
+            "https://www.dcbar.org/for-lawyers/legal-ethics/ethics-opinions-210-present/ethics-opinion-388",
+          verified: false,
+          canonical_disclosure_text:
+            "Generative artificial intelligence tools were used in the preparation of certain work product on this matter, under the supervision of the attorney of record. Consistent with the District of Columbia Rules of Professional Conduct (including Rules 1.1, 1.3, 1.5, 1.6, 5.1, and 5.3), the attorney verified the AI-assisted output, exercised independent professional judgment, and adopted the final work product as the attorney's own. The time billed reflects actual attorney time. No markup has been applied for AI-assisted efficiency.",
+        },
+      };
+
+      const FILENAME_VERBS = [
+        [
+          /motion[^/]*\.(docx|doc|pdf)/i,
+          "drafted and revised motion",
+          "reviewed motion",
+        ],
+        [
+          /oppos(ition|e)[^/]*\.(docx|doc|pdf)/i,
+          "drafted opposition",
+          "reviewed opposition",
+        ],
+        [
+          /reply[^/]*\.(docx|doc|pdf)/i,
+          "drafted reply brief",
+          "reviewed reply brief",
+        ],
+        [
+          /(appellate-?)?brief[^/]*\.(docx|doc|pdf)/i,
+          "drafted and revised brief",
+          "reviewed brief",
+        ],
+        [
+          /memo(randum)?[^/]*\.(docx|doc|pdf)/i,
+          "drafted memorandum",
+          "reviewed memorandum",
+        ],
+        [
+          /complaint[^/]*\.(docx|doc|pdf)/i,
+          "drafted complaint",
+          "reviewed complaint",
+        ],
+        [/answer[^/]*\.(docx|doc|pdf)/i, "drafted answer", "reviewed answer"],
+        [
+          /(proposed[-_])?order[^/]*\.(docx|doc|pdf)/i,
+          "drafted proposed order",
+          "reviewed order",
+        ],
+        [
+          /affidavit[^/]*\.(docx|doc|pdf)/i,
+          "drafted affidavit",
+          "reviewed affidavit",
+        ],
+        [
+          /declaration[^/]*\.(docx|doc|pdf)/i,
+          "drafted declaration",
+          "reviewed declaration",
+        ],
+        [
+          /discovery[^/]*\.(docx|doc|pdf)/i,
+          "prepared discovery",
+          "reviewed discovery",
+        ],
+        [
+          /interrogator(y|ies)[^/]*\.(docx|doc|pdf)/i,
+          "drafted interrogatories",
+          "reviewed interrogatories",
+        ],
+        [
+          /deposition[^/]*\.(docx|doc|pdf|txt)/i,
+          "prepared for deposition",
+          "reviewed deposition materials",
+        ],
+        [
+          /exhibit[^/]*\.(pdf|docx|doc|jpg|png|tiff)/i,
+          "prepared exhibit",
+          "reviewed exhibit",
+        ],
+        [
+          /(engagement-?)?letter[^/]*\.(docx|doc|pdf)/i,
+          "drafted correspondence",
+          "reviewed correspondence",
+        ],
+        [
+          /(contract|agreement)[^/]*\.(docx|doc|pdf)/i,
+          "drafted and revised agreement",
+          "reviewed agreement",
+        ],
+        [
+          /lease[^/]*\.(docx|doc|pdf)/i,
+          "drafted and revised lease",
+          "reviewed lease",
+        ],
+        [
+          /(nda|non-?disclosure)[^/]*\.(docx|doc|pdf)/i,
+          "drafted NDA",
+          "reviewed NDA",
+        ],
+        [
+          /term[-_ ]?sheet[^/]*\.(docx|doc|pdf)/i,
+          "drafted term sheet",
+          "reviewed term sheet",
+        ],
+        [
+          /pleading[^/]*\.(docx|doc|pdf)/i,
+          "drafted pleading",
+          "reviewed pleading",
+        ],
+        [
+          /settlement[^/]*\.(docx|doc|pdf)/i,
+          "drafted settlement document",
+          "reviewed settlement document",
+        ],
+        [/will[^/]*\.(docx|doc|pdf)/i, "drafted will", "reviewed will"],
+        [
+          /(power[-_]of[-_]attorney|poa)[^/]*\.(docx|doc|pdf)/i,
+          "drafted power of attorney",
+          "reviewed power of attorney",
+        ],
+        [
+          /trust[^/]*\.(docx|doc|pdf)/i,
+          "drafted trust document",
+          "reviewed trust document",
+        ],
+        [
+          /(transcript|hearing)[^/]*\.(pdf|txt|docx)/i,
+          "reviewed transcript",
+          "reviewed transcript",
+        ],
+      ];
+
+      const DIRECTORY_VERBS = [
+        [/\/briefs?\//i, "drafted brief"],
+        [/\/motions?\//i, "drafted motion"],
+        [/\/pleadings?\//i, "prepared pleadings"],
+        [/\/exhibits?\//i, "prepared exhibits"],
+        [/\/discovery\//i, "prepared discovery"],
+        [/\/correspondence\//i, "drafted correspondence"],
+        [/\/research\//i, "conducted legal research"],
+        [/\/memos?\//i, "drafted memorandum"],
+        [/\/contracts?\//i, "drafted and revised agreement"],
+        [/\/deposition[s_-]?prep\//i, "prepared for deposition"],
+        [/\/trial[s_-]?prep\//i, "prepared for trial"],
+      ];
+
+      const PLACEHOLDER_DISCLOSURE_RE = [
+        /\bTODO\b/i,
+        /\[fill\s*in\]/i,
+        /\[your.*here\]/i,
+        /^\s*$/,
+      ];
+
+      // ---------- hashing ----------
+
+      async function sha256(text) {
+        const buf = await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(text),
+        );
+        return Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function sha256OfArrayBuffer(buf) {
+        const digest = await crypto.subtle.digest("SHA-256", buf);
+        return Array.from(new Uint8Array(digest))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      // ---------- YAML loader (mirrors CLI parseYaml) ----------
 
       function parseYaml(text) {
         const root = {};
@@ -351,7 +645,6 @@
         }
         return root;
       }
-
       function coerce(v) {
         v = v.trim();
         if (/^"(.*)"$/.test(v)) return v.slice(1, -1);
@@ -362,6 +655,8 @@
         if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
         return v;
       }
+
+      // ---------- session parsing ----------
 
       function extractText(content) {
         if (typeof content === "string") return content;
@@ -378,15 +673,22 @@
           .filter((c) => c && c.type === "tool_use" && c.name)
           .map((c) => ({ name: c.name, input: c.input || {} }));
       }
-      function extractFiles(tools) {
-        const out = new Set();
+      function classifyFileOps(tools) {
+        const ops = [];
+        const writers = new Set(["Edit", "Write", "NotebookEdit"]);
+        const readers = new Set(["Read"]);
         for (const t of tools) {
           const fp = t.input?.file_path || t.input?.path;
-          if (typeof fp === "string") out.add(fp);
+          if (typeof fp !== "string") continue;
+          const mode = writers.has(t.name)
+            ? "write"
+            : readers.has(t.name)
+              ? "read"
+              : null;
+          if (mode) ops.push({ path: fp, mode });
         }
-        return [...out];
+        return ops;
       }
-
       function extractEvents(jsonlTexts) {
         const events = [];
         for (const text of jsonlTexts) {
@@ -414,7 +716,7 @@
                 ...base,
                 kind: "assistant_turn",
                 tools: tools.map((t) => t.name),
-                files: extractFiles(tools),
+                fileOps: classifyFileOps(tools),
               });
             }
           }
@@ -422,6 +724,8 @@
         events.sort((a, b) => +a.ts - +b.ts);
         return events;
       }
+
+      // ---------- routing ----------
 
       function normalizeRoute(r) {
         return r.replace(/\/+$/, "") || r;
@@ -434,16 +738,22 @@
       function checkRoutes(routes) {
         const warnings = [];
         for (const r of routes) {
-          // Heuristic: "/" or a 2-segment path like "/Users/foo" or "C:\Users\foo".
           const segs = r.split("/").filter(Boolean);
           if (r === "/" || segs.length <= 2) {
-            warnings.push(
-              `Route \`${r}\` matches your ${r === "/" ? "entire filesystem" : "home or near-home directory"}. Every Claude Code session in this window will be treated as on-matter — including work for other clients or non-billable side projects. Narrow \`matter.yml.routes\` to a specific matter directory before relying on this output.`,
-            );
+            const why =
+              r === "/"
+                ? "matches your entire filesystem"
+                : `is only ${segs.length} path segment(s) deep — too broad`;
+            warnings.push({
+              route: r,
+              message: `Route \`${r}\` ${why}. Every Claude Code session in this window will be treated as on-matter — including work for other clients or non-billable side projects. Narrow \`matter.yml.routes\` to a specific matter directory before relying on this output.`,
+            });
           }
         }
         return warnings;
       }
+
+      // ---------- intervals ----------
 
       function clusterIntervals(events, idleGapMs) {
         const intervals = [];
@@ -473,7 +783,7 @@
           cwd: e.cwd,
           prompts: [],
           tools: new Map(),
-          files: new Set(),
+          fileOps: [],
           promptCount: 0,
           turnCount: 0,
         };
@@ -491,34 +801,72 @@
           i.turnCount++;
           for (const t of e.tools || [])
             i.tools.set(t, (i.tools.get(t) || 0) + 1);
-          for (const f of e.files || []) i.files.add(f);
+          for (const op of e.fileOps || []) i.fileOps.push(op);
         }
       }
 
+      // ---------- narrative synthesis (deterministic, content-aware) ----------
+
       function synthesizeNarrative(interval, opts = {}) {
-        const verbs = [];
-        const toolNames = [...interval.tools.keys()];
-        const has = (n) => toolNames.includes(n);
-        if (has("Edit") || has("Write") || has("NotebookEdit"))
-          verbs.push("drafted and revised");
-        if (has("Read")) verbs.push("reviewed");
-        if (has("Grep") || has("Glob") || has("WebSearch"))
-          verbs.push("researched");
-        if (has("Bash")) verbs.push("ran analysis");
-        if (verbs.length === 0) verbs.push("analyzed and corresponded on");
-        const lead = verbs.join("; ").replace(/^./, (c) => c.toUpperCase());
+        const verbs = new Set();
+        for (const op of interval.fileOps) {
+          const v = verbFromFile(op.path, op.mode);
+          if (v) verbs.add(v);
+        }
+        if (verbs.size === 0) {
+          for (const op of interval.fileOps) {
+            const v = verbFromDirectory(op.path);
+            if (v) verbs.add(v);
+          }
+        }
+        if (verbs.size === 0) {
+          const toolNames = [...interval.tools.keys()];
+          const has = (n) => toolNames.includes(n);
+          if (has("Edit") || has("Write") || has("NotebookEdit"))
+            verbs.add("drafted and revised matter-related work product");
+          if (has("Read")) verbs.add("reviewed matter-related work product");
+          if (has("Grep") || has("Glob") || has("WebSearch"))
+            verbs.add("conducted legal research");
+          if (has("Bash"))
+            verbs.add("ran analysis on matter-related work product");
+          if (verbs.size === 0)
+            verbs.add(
+              "analyzed and corresponded on matter-related work product",
+            );
+        }
+        const verbList = [...verbs];
+        const lead = capitalize(verbList.join("; "));
         const promptHint = opts.includePromptSnippet
           ? headlineFromPrompts(interval.prompts)
           : "";
-        const fileHint = describeFiles([...interval.files]);
-        const parts = [
-          `${lead} matter-related work product${promptHint ? ` — ${promptHint}` : ""}.`,
-        ];
+        const fileHint = describeFiles(uniqFilePaths(interval.fileOps));
+        const parts = [`${lead}${promptHint ? ` — ${promptHint}` : ""}.`];
         if (fileHint) parts.push(fileHint);
         parts.push(
-          `Reviewed AI-assisted output and adopted as own work product.`,
+          "Reviewed AI-assisted output and adopted as own work product.",
         );
         return parts.join(" ");
+      }
+      function verbFromFile(filePath, mode) {
+        const name = filePath.split("/").pop();
+        for (const [re, write, read] of FILENAME_VERBS) {
+          if (re.test(name)) return mode === "read" ? read : write;
+        }
+        return null;
+      }
+      function verbFromDirectory(filePath) {
+        for (const [re, verb] of DIRECTORY_VERBS) {
+          if (re.test(filePath)) return verb;
+        }
+        return null;
+      }
+      function uniqFilePaths(fileOps) {
+        const out = new Set();
+        for (const op of fileOps) out.add(op.path);
+        return [...out];
+      }
+      function capitalize(s) {
+        return s ? s[0].toUpperCase() + s.slice(1) : s;
       }
       function headlineFromPrompts(prompts) {
         if (!prompts.length) return "";
@@ -538,6 +886,9 @@
         const extra = files.length > 3 ? ` (+${files.length - 3} more)` : "";
         return `Files touched: ${shown}${extra}.`;
       }
+
+      // ---------- date helpers ----------
+
       function roundTenth(h) {
         return Math.round(h * 10) / 10;
       }
@@ -547,6 +898,9 @@
           .replace("T", " ")
           .replace(/\.\d+Z$/, "Z");
       }
+      function fmtFull(ts) {
+        return new Date(ts).toISOString();
+      }
       function dur(ms) {
         const m = Math.round(ms / 60000);
         const h = Math.floor(m / 60);
@@ -554,103 +908,91 @@
         return h > 0 ? `${h}h${mm}m` : `${mm}m`;
       }
 
-      function render({
-        matter,
-        intervals,
-        excluded,
-        options,
-        sourceCount,
-        warnings = [],
-      }) {
-        const m = matter.matter || {};
+      // ---------- disclosure resolution ----------
+
+      function disclosureIsPlaceholder(t) {
+        if (typeof t !== "string") return true;
+        return PLACEHOLDER_DISCLOSURE_RE.some((re) => re.test(t));
+      }
+      function resolveEffectiveDisclosure(matter, pack) {
         const ethics = matter.ethics || {};
-        const billing = matter.billing || {};
-        const disclosureRequired = !!ethics.ai_disclosure_required;
-        const totalHours = intervals.reduce(
-          (acc, i) => acc + roundTenth((+i.end - +i.start) / 3600000),
-          0,
-        );
-        const lines = [];
-        lines.push(
-          `# Draft time entries — ${m.caption || m.id || "unspecified matter"}`,
-        );
-        lines.push("");
-        lines.push(
-          `> Generated by \`billable-time\` ${new Date().toISOString().slice(0, 10)}. **Nothing has been billed.** Each row below is a proposal. Mark each row \`accept\` / \`edit\` / \`reject\` before exporting to Clio.`,
-        );
-        lines.push("");
-        if (warnings.length) {
-          lines.push(
-            "> ⚠️ **Routing warnings — review before treating any row as on-matter:**",
-          );
-          for (const w of warnings) lines.push(`> - ${w}`);
-          lines.push("");
+        if (!ethics.ai_disclosure_required) return null;
+        const inMatter =
+          typeof ethics.disclosure_text === "string" &&
+          ethics.disclosure_text.trim();
+        const inPack =
+          pack &&
+          typeof pack.canonical_disclosure_text === "string" &&
+          pack.canonical_disclosure_text.trim();
+        if (inMatter && !disclosureIsPlaceholder(ethics.disclosure_text)) {
+          return { source: "matter", text: ethics.disclosure_text.trim() };
         }
-        lines.push(
-          `**Matter:** ${m.id || "—"}  ·  **Client:** ${m.client || "—"}  ·  **Jurisdiction:** ${m.jurisdiction || "—"}  ·  **Rate:** ${billing.rate_per_hour ? `$${billing.rate_per_hour}/h` : "—"}`,
-        );
-        lines.push("");
-        lines.push(
-          `**AI disclosure required:** ${disclosureRequired ? "yes" : "no"}  ·  **Idle-gap threshold:** ${options.idleGapMin} min  ·  **Rounding:** nearest 0.1h  ·  **Prompt snippet in narrative:** ${options.includePromptSnippet ? "on" : "off (default)"}`,
-        );
-        lines.push("");
-        lines.push(
-          `**Window:** ${options.since || "(default 24h ago)"} → ${options.until || "(today)"}  ·  **Source files:** ${sourceCount}  ·  **Proposed total: ${totalHours.toFixed(1)}h**`,
-        );
-        lines.push("");
-        lines.push("---");
-        lines.push("");
-        if (intervals.length === 0) {
-          lines.push(
-            "_No on-matter intervals detected in window. See **Excluded** below._",
-          );
-        } else {
-          lines.push("## Proposed entries");
-          lines.push("");
-          intervals.forEach((i, idx) => {
-            const hours = roundTenth((+i.end - +i.start) / 3600000);
-            const minHours = billing.minimum_increment_hours || 0.1;
-            const billable = Math.max(hours, minHours);
-            lines.push(
-              `### ${String(idx + 1).padStart(2, "0")}. ${fmt(i.start)} → ${fmt(i.end)}  ·  ${dur(+i.end - +i.start)}  ·  **${billable.toFixed(1)}h**`,
-            );
-            lines.push("");
-            lines.push(
-              `- **Status:** \`[ ] accept    [ ] edit    [ ] reject\``,
-            );
-            lines.push(
-              `- **Narrative (draft, lawyer edits):** ${synthesizeNarrative(i, { includePromptSnippet: options.includePromptSnippet })}`,
-            );
-            if (disclosureRequired && ethics.disclosure_text) {
-              lines.push(`- **AI disclosure:** ${ethics.disclosure_text}`);
-            }
-            lines.push(
-              `- **Signals:** ${i.promptCount} prompts · ${i.turnCount} assistant turns · ${i.files.size} files touched · cwd \`${i.cwd || "?"}\``,
-            );
-            lines.push("");
-          });
+        if (
+          inPack &&
+          !disclosureIsPlaceholder(pack.canonical_disclosure_text)
+        ) {
+          return {
+            source: "pack",
+            text: pack.canonical_disclosure_text.trim(),
+          };
         }
-        lines.push("---");
-        lines.push("");
-        lines.push("## Excluded (for your review — not billed by default)");
-        lines.push("");
-        if (excluded.length === 0) lines.push("_Nothing excluded in window._");
-        else for (const x of excluded) lines.push(`- ${x}`);
-        lines.push("");
-        lines.push("---");
-        lines.push("");
-        lines.push("## Ethics note");
-        lines.push("");
-        lines.push(
-          "This tool does not bill. It produces a reviewable draft. Time, narrative, and AI-disclosure language are subject to attorney review. The attorney of record is responsible for the final entries submitted to the client and the billing system.",
-        );
-        return lines.join("\n");
+        return { source: "missing", text: null };
       }
 
-      function generate({ jsonlTexts, matterText, options }) {
+      function validateAttorney(matter) {
+        const a = matter.attorney || {};
+        const errors = [];
+        if (!a.name)
+          errors.push(
+            "matter.yml.attorney.name is required (attorney of record)",
+          );
+        if (!a.bar_id)
+          errors.push(
+            "matter.yml.attorney.bar_id is required (bar admission identifier)",
+          );
+        if (!a.bar_jurisdiction)
+          errors.push("matter.yml.attorney.bar_jurisdiction is required");
+        return errors;
+      }
+
+      // ---------- main generate ----------
+
+      async function generate({ jsonlFileEntries, matterText, options }) {
         const matter = parseYaml(matterText || "");
+        const attorney = matter.attorney || {};
         const routes = (matter.routes || []).map(normalizeRoute);
         const warnings = checkRoutes(routes);
+
+        const packCode = matter?.ethics?.disclosure_pack || null;
+        const pack = packCode
+          ? DISCLOSURE_PACKS[packCode] || { error: `unknown pack: ${packCode}` }
+          : null;
+        const packForOutput = pack ? { code: packCode, ...pack } : null;
+        let packHash = null;
+        if (packForOutput && !packForOutput.error) {
+          packHash = await sha256(JSON.stringify(pack));
+          packForOutput.sha256 = packHash;
+        }
+
+        const effectiveDisclosure = resolveEffectiveDisclosure(
+          matter,
+          pack && !pack.error ? pack : null,
+        );
+
+        const matterHash = await sha256(matterText || "");
+
+        // Hash + read all session files
+        const fileHashes = [];
+        const jsonlTexts = [];
+        for (const entry of jsonlFileEntries) {
+          const buf = await entry.file.arrayBuffer();
+          fileHashes.push({
+            path: entry.file.name,
+            bytes: buf.byteLength,
+            sha256: await sha256OfArrayBuffer(buf),
+          });
+          jsonlTexts.push(new TextDecoder("utf-8").decode(buf));
+        }
 
         const since = options.since
           ? new Date(options.since + "T00:00:00Z")
@@ -671,55 +1013,482 @@
         );
 
         const idleGapMs = options.idleGapMin * 60 * 1000;
-        const intervals = clusterIntervals(onMatter, idleGapMs);
+        const intervalsAll = clusterIntervals(onMatter, idleGapMs);
 
         const excluded = [];
-        const filtered = intervals.filter((i) => {
+        const intervals = intervalsAll.filter((i) => {
           const hrs = (+i.end - +i.start) / 3600000;
           if (hrs < 0.05 && i.promptCount <= 1) {
             excluded.push(
-              `${fmt(i.start)} (${i.promptCount} prompt) — trivial, below 0.05h. Skipped.`,
+              `Trivial interval at ${fmt(i.start)} — ${i.promptCount} prompt, < 0.05h. Skipped.`,
             );
             return false;
           }
           return true;
         });
+
         const byCwd = new Map();
         for (const e of offMatter) {
           const k = e.cwd || "(no cwd)";
           byCwd.set(k, (byCwd.get(k) || 0) + 1);
         }
         for (const [k, n] of byCwd.entries()) {
-          excluded.push(
-            `Off-matter (cwd \`${k}\`) — ${n} events. Add to \`matter.yml.routes\` if this belongs to this matter.`,
-          );
+          const suggestion =
+            k === "(no cwd)"
+              ? "session events missing cwd metadata. Cannot route to a matter without an explicit prefix."
+              : `if this cwd belongs to this matter, add \`  - "${k}"\` under \`routes:\` in matter.yml.`;
+          excluded.push(`Off-matter cwd \`${k}\` — ${n} events. ${suggestion}`);
         }
-        for (let idx = 1; idx < filtered.length; idx++) {
-          const gap = +filtered[idx].start - +filtered[idx - 1].end;
+        for (let idx = 1; idx < intervals.length; idx++) {
+          const gap = +intervals[idx].start - +intervals[idx - 1].end;
           const gapMin = Math.round(gap / 60000);
           if (gapMin >= options.idleGapMin && gapMin >= 30) {
             excluded.push(
-              `Idle gap ${gapMin} min between ${fmt(filtered[idx - 1].end)} and ${fmt(filtered[idx].start)} — not billed (over idle threshold).`,
+              `Idle gap ${gapMin} min between ${fmt(intervals[idx - 1].end)} and ${fmt(intervals[idx].start)} — not billed.`,
             );
           }
         }
 
-        const md = render({
+        // Strict refusals
+        const refusals = [];
+        if (options.strict) {
+          for (const w of warnings)
+            refusals.push(`Broad route refused: ${w.message}`);
+          if (matter?.ethics?.ai_disclosure_required) {
+            if (
+              !effectiveDisclosure ||
+              effectiveDisclosure.source === "missing"
+            ) {
+              refusals.push(
+                "AI disclosure is required by this matter but no usable disclosure_text was found.",
+              );
+            }
+          }
+          if (pack && pack.error)
+            refusals.push(
+              `Disclosure pack reference is invalid: ${pack.error}`,
+            );
+          if (
+            pack &&
+            pack.verified === false &&
+            effectiveDisclosure?.source === "pack"
+          ) {
+            refusals.push(
+              `Disclosure pack \`${packCode}\` is marked verified: false and is the active disclosure source — verify against the source opinion and override with matter.yml.ethics.disclosure_text, or flip verified: true in your local copy.`,
+            );
+          }
+          for (const e of validateAttorney(matter)) refusals.push(e);
+        }
+
+        const generatedAt = new Date();
+        const totalHours = intervals.reduce(
+          (acc, i) => acc + roundTenth((+i.end - +i.start) / 3600000),
+          0,
+        );
+
+        const ctx = {
           matter,
-          intervals: filtered,
+          intervals,
           excluded,
           options,
-          sourceCount: jsonlTexts.length,
+          fileHashes,
+          matterHash,
+          matterText,
+          attorney,
           warnings,
-        });
+          refusals,
+          generatedAt,
+          disclosurePack: packForOutput,
+          effectiveDisclosure,
+          totalHours,
+        };
+
+        const mdWithPending = renderMarkdown(ctx);
+        const realHash = await sha256(mdWithPending);
+        const md = mdWithPending.replaceAll(SELF_HASH_SENTINEL, realHash);
+
+        const htmlWithPending = renderAuditPacket(ctx);
+        const html = htmlWithPending.replaceAll(SELF_HASH_SENTINEL, realHash);
+
         return {
           markdown: md,
+          auditHtml: html,
+          selfHash: realHash,
           counts: {
-            intervals: filtered.length,
+            intervals: intervals.length,
             onMatter: onMatter.length,
             offMatter: offMatter.length,
           },
+          refusals,
+          warnings,
         };
+      }
+
+      // ---------- markdown render ----------
+
+      function renderMarkdown(ctx) {
+        const {
+          matter,
+          intervals,
+          excluded,
+          options,
+          fileHashes,
+          matterHash,
+          matterText,
+          attorney,
+          warnings,
+          refusals,
+          generatedAt,
+          disclosurePack,
+          effectiveDisclosure,
+        } = ctx;
+        const m = matter.matter || {};
+        const ethics = matter.ethics || {};
+        const billing = matter.billing || {};
+        const disclosureRequired = !!ethics.ai_disclosure_required;
+        const totalHours = ctx.totalHours;
+
+        const lines = [];
+        lines.push(
+          `# Draft time entries — ${m.caption || m.id || "unspecified matter"}`,
+        );
+        lines.push("");
+        lines.push(
+          `> Generated by \`${TOOL_NAME}\` v${TOOL_VERSION} on ${fmtFull(generatedAt)}.  **Nothing has been billed.**  Each row below is a proposal. Mark each row \`accept\` / \`edit\` / \`reject\` before exporting to a billing system.`,
+        );
+        lines.push("");
+
+        if (refusals.length) {
+          lines.push(
+            "> 🛑 **STRICT-MODE REFUSAL — this artifact MUST NOT be used for billing.**",
+          );
+          lines.push("> Fix each one and re-run with strict mode on:");
+          for (const r of refusals) lines.push(`> - ${r}`);
+          lines.push("");
+        }
+        if (warnings.length) {
+          lines.push(
+            "> ⚠️ **Routing warnings — review before treating any row as on-matter:**",
+          );
+          for (const w of warnings) lines.push(`> - ${w.message}`);
+          lines.push("");
+        }
+
+        lines.push("## Matter and attorney of record");
+        lines.push("");
+        lines.push(`- **Matter:** ${m.id || "—"}`);
+        lines.push(`- **Client:** ${m.client || "—"}`);
+        lines.push(`- **Caption:** ${m.caption || "—"}`);
+        lines.push(`- **Jurisdiction (matter):** ${m.jurisdiction || "—"}`);
+        lines.push(`- **Practice area:** ${m.practice_area || "—"}`);
+        lines.push(
+          `- **Attorney of record:** ${attorney.name || "—"}${attorney.bar_id ? ` (Bar ID ${attorney.bar_id})` : ""}${attorney.bar_jurisdiction ? `, admitted in ${attorney.bar_jurisdiction}` : ""}`,
+        );
+        lines.push(
+          `- **Rate:** ${billing.rate_per_hour ? `$${billing.rate_per_hour}/h` : "—"}  ·  **Min increment:** ${billing.minimum_increment_hours || 0.1}h  ·  **Rounding:** nearest 0.1h`,
+        );
+        lines.push("");
+
+        lines.push("## Run parameters");
+        lines.push("");
+        lines.push(
+          `- **Window:** ${options.since || "(default 24h ago)"} → ${options.until || "(today)"}`,
+        );
+        lines.push(`- **Idle-gap threshold:** ${options.idleGapMin} min`);
+        lines.push(`- **Strict mode:** ${options.strict ? "on" : "off"}`);
+        lines.push(
+          `- **Prompt snippet in narrative:** ${options.includePromptSnippet ? "ON (lawyer enabled)" : "off (default)"}`,
+        );
+        lines.push(`- **Source files:** ${fileHashes.length}`);
+        lines.push(`- **Proposed total:** ${totalHours.toFixed(1)}h`);
+        lines.push("");
+
+        lines.push("## AI disclosure");
+        lines.push("");
+        if (!disclosureRequired) {
+          lines.push("- **Required by matter:** no");
+        } else {
+          lines.push("- **Required by matter:** yes");
+          if (disclosurePack && !disclosurePack.error) {
+            lines.push(
+              `- **Pack:** \`${disclosurePack.code}\` (jurisdiction: ${disclosurePack.jurisdiction || "—"})`,
+            );
+            if (disclosurePack.opinion)
+              lines.push(
+                `- **Opinion:** ${disclosurePack.opinion}${disclosurePack.date ? ` (${disclosurePack.date})` : ""}`,
+              );
+            if (disclosurePack.source_url)
+              lines.push(`- **Source:** ${disclosurePack.source_url}`);
+            if (disclosurePack.verified === false)
+              lines.push(
+                `- **Verification status:** ⚠️ **UNVERIFIED** — confirm against the source opinion.`,
+              );
+            if (disclosurePack.sha256)
+              lines.push(`- **Pack SHA-256:** \`${disclosurePack.sha256}\``);
+          }
+          if (effectiveDisclosure?.source === "matter")
+            lines.push("- **Active text source:** lawyer override");
+          else if (effectiveDisclosure?.source === "pack")
+            lines.push("- **Active text source:** pack canonical");
+          else if (effectiveDisclosure?.source === "missing")
+            lines.push("- **Active text source:** ⚠️ **NONE**");
+          if (effectiveDisclosure?.text) {
+            lines.push("- **Active text:**");
+            lines.push("");
+            lines.push(`  > ${effectiveDisclosure.text}`);
+          }
+        }
+        lines.push("");
+
+        lines.push("---");
+        lines.push("");
+
+        if (intervals.length === 0) {
+          lines.push(
+            "_No on-matter intervals detected in window. See **Excluded** below._",
+          );
+          lines.push("");
+        } else {
+          lines.push("## Proposed entries");
+          lines.push("");
+          intervals.forEach((i, idx) => {
+            const hours = roundTenth((+i.end - +i.start) / 3600000);
+            const minHours = billing.minimum_increment_hours || 0.1;
+            const billable = Math.max(hours, minHours);
+            lines.push(
+              `### ${String(idx + 1).padStart(2, "0")}. ${fmt(i.start)} → ${fmt(i.end)}  ·  ${dur(+i.end - +i.start)}  ·  **${billable.toFixed(1)}h**`,
+            );
+            lines.push("");
+            lines.push(
+              `- **Status:** \`[ ] accept    [ ] edit    [ ] reject\``,
+            );
+            lines.push(
+              `- **Narrative (draft, lawyer edits):** ${synthesizeNarrative(i, { includePromptSnippet: options.includePromptSnippet })}`,
+            );
+            if (disclosureRequired && effectiveDisclosure?.text) {
+              lines.push(`- **AI disclosure:** ${effectiveDisclosure.text}`);
+            }
+            lines.push(
+              `- **Signals:** ${i.promptCount} prompts · ${i.turnCount} assistant turns · ${i.fileOps.length} file ops · cwd \`${i.cwd || "?"}\``,
+            );
+            lines.push("");
+          });
+        }
+
+        lines.push("---");
+        lines.push("");
+        lines.push("## Excluded (for your review — not billed by default)");
+        lines.push("");
+        if (excluded.length === 0) lines.push("_Nothing excluded in window._");
+        else for (const x of excluded) lines.push(`- ${x}`);
+        lines.push("");
+
+        lines.push("---");
+        lines.push("");
+        lines.push("## Chain of evidence");
+        lines.push("");
+        lines.push(`- **Tool:** ${TOOL_NAME} v${TOOL_VERSION} (web port)`);
+        lines.push(`- **Generated at (UTC):** ${fmtFull(generatedAt)}`);
+        lines.push(`- **matter.yml SHA-256:** \`${matterHash}\``);
+        if (disclosurePack?.sha256)
+          lines.push(
+            `- **disclosure pack \`${disclosurePack.code}\` SHA-256:** \`${disclosurePack.sha256}\``,
+          );
+        lines.push("- **Source session files:**");
+        for (const f of fileHashes)
+          lines.push(
+            `  - \`${f.path}\` (${f.bytes} bytes) — sha256 \`${f.sha256}\``,
+          );
+        lines.push(
+          `- **Artifact self-hash (this document):** \`sha256:${SELF_HASH_SENTINEL}\``,
+        );
+        lines.push("");
+        lines.push(
+          "Verify by replacing the hex value above with the literal string `" +
+            SELF_HASH_SENTINEL +
+            "` and re-hashing.",
+        );
+        lines.push("");
+
+        lines.push("---");
+        lines.push("");
+        lines.push("## matter.yml (snapshot at generation)");
+        lines.push("");
+        lines.push("```yaml");
+        lines.push((matterText || "").replace(/\r\n/g, "\n").trimEnd());
+        lines.push("```");
+        lines.push("");
+
+        lines.push("---");
+        lines.push("");
+        lines.push("## Ethics note");
+        lines.push("");
+        lines.push(
+          "This tool does not bill. It produces a reviewable draft. The attorney of record is responsible for the final entries submitted with the bill.",
+        );
+        lines.push("");
+
+        return lines.join("\n");
+      }
+
+      // ---------- audit packet HTML (downloadable) ----------
+
+      function renderAuditPacket(ctx) {
+        const {
+          matter,
+          intervals,
+          excluded,
+          options,
+          fileHashes,
+          matterHash,
+          matterText,
+          attorney,
+          warnings,
+          refusals,
+          generatedAt,
+          disclosurePack,
+          effectiveDisclosure,
+          totalHours,
+        } = ctx;
+        const m = matter.matter || {};
+        const ethics = matter.ethics || {};
+        const billing = matter.billing || {};
+        const title = `Audit packet — ${m.caption || m.id || "unspecified matter"}`;
+        const esc = (s) =>
+          String(s ?? "").replace(
+            /[&<>]/g,
+            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+          );
+
+        return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title>
+<style>
+@page { size: letter; margin: 0.75in; }
+body { font: 11pt/1.45 "Times New Roman", Georgia, serif; color: #111;
+       max-width: 7.5in; margin: 0.5in auto; padding: 0 0.25in; }
+h1 { font-size: 18pt; margin: 0 0 6pt; }
+h2 { font-size: 13pt; margin: 18pt 0 6pt; border-bottom: 1px solid #888; padding-bottom: 3pt; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt; }
+.meta { font-size: 9.5pt; color: #555; margin: 0 0 12pt; }
+.warn { background: #fff5e6; border-left: 3pt solid #b14a00; padding: 6pt 10pt; margin: 8pt 0; }
+.refuse { background: #fdecec; border-left: 3pt solid #a00; padding: 6pt 10pt; margin: 8pt 0; font-weight: bold; }
+table.kv { border-collapse: collapse; margin: 4pt 0 8pt; width: 100%; font-size: 10pt; }
+table.kv td { padding: 2pt 6pt; vertical-align: top; }
+table.kv td:first-child { font-weight: bold; width: 28%; color: #444; }
+table.evidence { border-collapse: collapse; width: 100%; font-size: 9pt; }
+table.evidence th, table.evidence td { border-bottom: 1px solid #ccc; padding: 3pt 6pt; text-align: left; vertical-align: top; }
+table.evidence th { background: #f4f4f4; }
+code { font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 9pt; word-break: break-all; }
+.entry { margin: 10pt 0; padding: 8pt 10pt; border: 1px solid #ccc; border-radius: 4pt; page-break-inside: avoid; }
+.entry header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4pt; }
+.entry .narr { margin: 4pt 0; }
+.entry .signals { font-size: 9pt; color: #555; }
+.entry .status .opt { display: inline-block; min-width: 18pt; border: 1px solid #888; padding: 0 4pt; margin-right: 8pt; text-align: center; }
+.signature { margin-top: 24pt; padding: 12pt; border: 2pt solid #111; page-break-inside: avoid; }
+.signature .line { display: inline-block; border-bottom: 1pt solid #111; min-width: 2.5in; height: 1.1em; vertical-align: bottom; margin: 0 4pt; }
+pre.matter-yml { background: #f7f7f7; border: 1px solid #ddd; padding: 8pt 10pt; font: 9pt/1.4 "SF Mono", Menlo, Monaco, Consolas, monospace; white-space: pre-wrap; }
+.footer { margin-top: 18pt; font-size: 8.5pt; color: #777; border-top: 1px solid #ccc; padding-top: 6pt; }
+@media print { body { margin: 0; } .entry, .signature { page-break-inside: avoid; } }
+</style></head>
+<body>
+<h1>${esc(title)}</h1>
+<p class="meta">${esc(TOOL_NAME)} v${esc(TOOL_VERSION)} (web port) · generated ${esc(fmtFull(generatedAt))} · ${esc(intervals.length)} proposed entries · ${esc(totalHours.toFixed(1))}h proposed</p>
+
+${refusals.length ? `<div class="refuse">🛑 STRICT-MODE REFUSAL. This artifact MUST NOT be presented as a final billing record. Fix and re-run:<ul>${refusals.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
+${warnings.length ? `<div class="warn">⚠️ Routing warnings — review before treating any row as on-matter:<ul>${warnings.map((w) => `<li>${esc(w.message)}</li>`).join("")}</ul></div>` : ""}
+
+<h2>Matter and attorney of record</h2>
+<table class="kv">
+  <tr><td>Matter</td><td>${esc(m.id) || "—"}</td></tr>
+  <tr><td>Client</td><td>${esc(m.client) || "—"}</td></tr>
+  <tr><td>Caption</td><td>${esc(m.caption) || "—"}</td></tr>
+  <tr><td>Jurisdiction (matter)</td><td>${esc(m.jurisdiction) || "—"}</td></tr>
+  <tr><td>Practice area</td><td>${esc(m.practice_area) || "—"}</td></tr>
+  <tr><td>Attorney of record</td><td>${esc(attorney.name) || "—"}${attorney.bar_id ? ` (Bar ID ${esc(attorney.bar_id)})` : ""}${attorney.bar_jurisdiction ? `, admitted in ${esc(attorney.bar_jurisdiction)}` : ""}</td></tr>
+  <tr><td>Rate</td><td>${billing.rate_per_hour ? `$${esc(billing.rate_per_hour)}/h` : "—"} · min ${esc(billing.minimum_increment_hours || 0.1)}h · rounding nearest 0.1h</td></tr>
+</table>
+
+<h2>AI disclosure</h2>
+${
+  !ethics.ai_disclosure_required
+    ? `<p>Not required for this matter.</p>`
+    : `
+<table class="kv">
+  <tr><td>Required by matter</td><td>yes</td></tr>
+  ${
+    disclosurePack && !disclosurePack.error
+      ? `
+    <tr><td>Pack</td><td><code>${esc(disclosurePack.code)}</code> · ${esc(disclosurePack.jurisdiction || "—")}</td></tr>
+    ${disclosurePack.opinion ? `<tr><td>Opinion</td><td>${esc(disclosurePack.opinion)}${disclosurePack.date ? ` (${esc(disclosurePack.date)})` : ""}</td></tr>` : ""}
+    ${disclosurePack.source_url ? `<tr><td>Source</td><td><a href="${esc(disclosurePack.source_url)}">${esc(disclosurePack.source_url)}</a></td></tr>` : ""}
+    ${disclosurePack.verified === false ? `<tr><td>Verification</td><td>⚠️ <strong>UNVERIFIED</strong></td></tr>` : ""}
+    ${disclosurePack.sha256 ? `<tr><td>Pack SHA-256</td><td><code>${esc(disclosurePack.sha256)}</code></td></tr>` : ""}
+  `
+      : ""
+  }
+  ${
+    effectiveDisclosure
+      ? `
+    <tr><td>Active text source</td><td>${esc(effectiveDisclosure.source === "matter" ? "lawyer override" : effectiveDisclosure.source === "pack" ? "pack canonical" : "⚠️ NONE")}</td></tr>
+    ${effectiveDisclosure.text ? `<tr><td>Active text</td><td><em>${esc(effectiveDisclosure.text)}</em></td></tr>` : ""}
+  `
+      : ""
+  }
+</table>`
+}
+
+<h2>Proposed entries</h2>
+${
+  intervals.length === 0
+    ? `<p><em>No on-matter intervals detected in window.</em></p>`
+    : intervals
+        .map((i, idx) => {
+          const hours = roundTenth((+i.end - +i.start) / 3600000);
+          const minHours = billing.minimum_increment_hours || 0.1;
+          const billable = Math.max(hours, minHours);
+          const narrative = synthesizeNarrative(i, {
+            includePromptSnippet: options.includePromptSnippet,
+          });
+          return `<div class="entry">
+    <header><span>${String(idx + 1).padStart(2, "0")}. ${esc(fmt(i.start))} → ${esc(fmt(i.end))}</span><span>${esc(dur(+i.end - +i.start))} · <strong>${billable.toFixed(1)}h</strong></span></header>
+    <div class="status"><span class="opt">&nbsp;</span>accept &nbsp; <span class="opt">&nbsp;</span>edit &nbsp; <span class="opt">&nbsp;</span>reject</div>
+    <div class="narr"><strong>Narrative:</strong> ${esc(narrative)}</div>
+    ${ethics.ai_disclosure_required && effectiveDisclosure?.text ? `<div class="narr"><strong>AI disclosure:</strong> <em>${esc(effectiveDisclosure.text)}</em></div>` : ""}
+    <div class="signals">${i.promptCount} prompts · ${i.turnCount} assistant turns · ${i.fileOps.length} file ops · cwd <code>${esc(i.cwd || "?")}</code></div>
+  </div>`;
+        })
+        .join("")
+}
+
+<h2>Excluded (for review — not billed by default)</h2>
+${excluded.length === 0 ? `<p><em>Nothing excluded in window.</em></p>` : `<ul>${excluded.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`}
+
+<h2>Chain of evidence</h2>
+<table class="kv">
+  <tr><td>Tool</td><td>${esc(TOOL_NAME)} v${esc(TOOL_VERSION)} (web port)</td></tr>
+  <tr><td>Generated at (UTC)</td><td>${esc(fmtFull(generatedAt))}</td></tr>
+  <tr><td>matter.yml SHA-256</td><td><code>${esc(matterHash)}</code></td></tr>
+  ${disclosurePack?.sha256 ? `<tr><td>Pack SHA-256</td><td><code>${esc(disclosurePack.sha256)}</code></td></tr>` : ""}
+  <tr><td>Companion markdown SHA-256</td><td><code>sha256:${SELF_HASH_SENTINEL}</code></td></tr>
+</table>
+<h3>Source session files</h3>
+<table class="evidence">
+  <thead><tr><th>Path</th><th>Bytes</th><th>SHA-256</th></tr></thead>
+  <tbody>${fileHashes.map((f) => `<tr><td><code>${esc(f.path)}</code></td><td>${esc(f.bytes)}</td><td><code>${esc(f.sha256)}</code></td></tr>`).join("")}</tbody>
+</table>
+
+<h2>matter.yml (snapshot at generation)</h2>
+<pre class="matter-yml">${esc((matterText || "").replace(/\r\n/g, "\n").trimEnd())}</pre>
+
+<div class="signature">
+  <h2 style="margin-top:0;">Attorney signoff</h2>
+  <p>I, <span class="line">&nbsp;</span> (Bar ID <span class="line" style="min-width:1.5in;">&nbsp;</span>, admitted in <span class="line" style="min-width:1.5in;">&nbsp;</span>), certify that I have reviewed every proposed entry above, marked each as accept / edit / reject, and adopt the accepted entries as my own work product as adjusted for billing the client.</p>
+  <p>I further certify that the AI-assistance disclosure above accurately describes the use of generative AI tools in this matter as required by my bar admission, and that I have verified the chain-of-evidence hashes against the source files at the time of signing.</p>
+  <p style="margin-top: 16pt;">Signature: <span class="line">&nbsp;</span> &nbsp; Date: <span class="line" style="min-width:1.5in;">&nbsp;</span></p>
+</div>
+
+<div class="footer">Audit packet — billable-time v${esc(TOOL_VERSION)} (web port). Does not constitute legal advice.</div>
+</body></html>`;
       }
 
       // ---------- UI ----------
@@ -727,7 +1496,6 @@
       const $ = (id) => document.getElementById(id);
 
       function mdToHtml(md) {
-        // Minimal renderer for our known output shape. NOT a general md->html.
         const esc = (s) =>
           s.replace(
             /[&<>]/g,
@@ -738,17 +1506,26 @@
         let inList = false;
         let inBlockquote = false;
         let blockquoteClass = "";
+        let inPre = false;
+        let preBuf = [];
         const flushList = () => {
           if (inList) {
             out.push("</ul>");
             inList = false;
           }
         };
-        const flushBlockquote = () => {
+        const flushBQ = () => {
           if (inBlockquote) {
             out.push("</blockquote>");
             inBlockquote = false;
             blockquoteClass = "";
+          }
+        };
+        const flushPre = () => {
+          if (inPre) {
+            out.push(`<pre>${esc(preBuf.join("\n"))}</pre>`);
+            inPre = false;
+            preBuf = [];
           }
         };
         const inline = (s) =>
@@ -757,37 +1534,59 @@
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
         for (const ln of lines) {
+          if (/^```/.test(ln)) {
+            if (inPre) flushPre();
+            else {
+              flushList();
+              flushBQ();
+              inPre = true;
+            }
+            continue;
+          }
+          if (inPre) {
+            preBuf.push(ln);
+            continue;
+          }
           if (/^---\s*$/.test(ln)) {
             flushList();
-            flushBlockquote();
+            flushBQ();
             out.push("<hr/>");
             continue;
           }
           if (/^# /.test(ln)) {
             flushList();
-            flushBlockquote();
+            flushBQ();
             out.push(`<h1>${inline(ln.slice(2))}</h1>`);
             continue;
           }
           if (/^## /.test(ln)) {
             flushList();
-            flushBlockquote();
+            flushBQ();
             out.push(`<h2>${inline(ln.slice(3))}</h2>`);
             continue;
           }
           if (/^### /.test(ln)) {
             flushList();
-            flushBlockquote();
+            flushBQ();
             out.push(`<h3>${inline(ln.slice(4))}</h3>`);
             continue;
           }
           if (/^> /.test(ln)) {
             flushList();
             const text = ln.slice(2);
-            const isWarn = /⚠️|Routing warnings/.test(text);
-            if (!inBlockquote || (isWarn && !blockquoteClass)) {
-              flushBlockquote();
-              blockquoteClass = isWarn ? ' class="warn"' : "";
+            const isRefuse = /🛑|STRICT-MODE REFUSAL/.test(text);
+            const isWarn = !isRefuse && /⚠️|Routing warnings/.test(text);
+            const desiredClass = isRefuse
+              ? ' class="refuse"'
+              : isWarn
+                ? ' class="warn"'
+                : "";
+            if (
+              !inBlockquote ||
+              (desiredClass && desiredClass !== blockquoteClass)
+            ) {
+              flushBQ();
+              blockquoteClass = desiredClass;
               out.push(`<blockquote${blockquoteClass}>`);
               inBlockquote = true;
             }
@@ -795,7 +1594,7 @@
             continue;
           }
           if (/^- /.test(ln)) {
-            flushBlockquote();
+            flushBQ();
             if (!inList) {
               out.push("<ul>");
               inList = true;
@@ -804,19 +1603,19 @@
             continue;
           }
           flushList();
-          flushBlockquote();
+          flushBQ();
           if (ln.trim() === "") out.push("<p></p>");
           else out.push(`<p>${inline(ln)}</p>`);
         }
         flushList();
-        flushBlockquote();
+        flushBQ();
+        flushPre();
         return out.join("\n");
       }
 
-      async function readFiles(files) {
-        return Promise.all([...files].map((f) => f.text()));
+      async function readFileText(file) {
+        return file.text();
       }
-
       function setStatus(msg) {
         $("status").textContent = msg;
       }
@@ -832,11 +1631,14 @@
       }
 
       let lastMarkdown = "";
+      let lastAuditHtml = "";
 
       $("generateBtn").addEventListener("click", async () => {
         setError("");
         setStatus("");
         $("resultArea").hidden = true;
+        $("downloadMdBtn").disabled = true;
+        $("downloadAuditBtn").disabled = true;
 
         const sessionFiles = $("sessionInput").files;
         if (!sessionFiles || sessionFiles.length === 0) {
@@ -852,53 +1654,72 @@
           return;
         }
 
-        setStatus("parsing…");
-        let jsonlTexts;
-        try {
-          jsonlTexts = await readFiles(sessionFiles);
-        } catch (e) {
-          setError(`Could not read session files: ${e.message}`);
-          setStatus("");
-          return;
-        }
-
+        setStatus("hashing + parsing…");
         const options = {
           since: $("sinceInput").value || null,
           until: $("untilInput").value || null,
           idleGapMin: Number($("idleGapInput").value) || 5,
           includePromptSnippet: $("snippetInput").checked,
+          strict: $("strictInput").checked,
         };
 
         let result;
         try {
-          result = generate({ jsonlTexts, matterText, options });
+          const jsonlFileEntries = [...sessionFiles].map((f) => ({ file: f }));
+          result = await generate({ jsonlFileEntries, matterText, options });
         } catch (e) {
+          console.error(e);
           setError(`Generation failed: ${e.message}`);
           setStatus("");
           return;
         }
 
         lastMarkdown = result.markdown;
+        lastAuditHtml = result.auditHtml;
         $("rendered").innerHTML = mdToHtml(result.markdown);
         $("rawMd").textContent = result.markdown;
         $("resultArea").hidden = false;
-        $("downloadBtn").disabled = false;
+        $("downloadMdBtn").disabled = false;
+        $("downloadAuditBtn").disabled = false;
+
+        const refusalNote = result.refusals.length
+          ? ` · 🛑 ${result.refusals.length} strict refusal(s)`
+          : "";
+        const warnNote = result.warnings.length
+          ? ` · ⚠️ ${result.warnings.length} routing warning(s)`
+          : "";
         setStatus(
-          `${result.counts.intervals} intervals · ${result.counts.onMatter} on-matter events · ${result.counts.offMatter} off-matter`,
+          `${result.counts.intervals} intervals · ${result.counts.onMatter} on-matter · ${result.counts.offMatter} off-matter · self-hash ${result.selfHash.slice(0, 12)}…${refusalNote}${warnNote}`,
         );
       });
 
-      $("downloadBtn").addEventListener("click", () => {
-        if (!lastMarkdown) return;
-        const blob = new Blob([lastMarkdown], { type: "text/markdown" });
+      function download(filename, content, mime) {
+        const blob = new Blob([content], { type: mime });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `draft-${new Date().toISOString().slice(0, 10)}.md`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+      }
+
+      $("downloadMdBtn").addEventListener("click", () => {
+        if (!lastMarkdown) return;
+        download(
+          `draft-${new Date().toISOString().slice(0, 10)}.md`,
+          lastMarkdown,
+          "text/markdown",
+        );
+      });
+      $("downloadAuditBtn").addEventListener("click", () => {
+        if (!lastAuditHtml) return;
+        download(
+          `draft-${new Date().toISOString().slice(0, 10)}.audit.html`,
+          lastAuditHtml,
+          "text/html",
+        );
       });
     </script>
   </body>

@@ -1,16 +1,31 @@
+# DEMONSTRATIVE matter.yml — broad-route case.
+#
+# This file is INTENTIONALLY misconfigured: the route is the user's home
+# directory, which would catch every Claude Code session regardless of
+# subject. Used to generate `out/sample-draft.md` so reviewers can see
+# what the routing-warning banner looks like in the artifact.
+#
+# Also intentionally missing the `attorney:` block and using a pack with
+# `verified: false`, so `--strict` mode demonstrates the refusal path.
+
 matter:
   id: "TEST-001"
   client: "Demo Client"
-  caption: "Test Matter (billable-time dry run)"
-  jurisdiction: "CT"
+  caption: "Test Matter — broad-route demo (DO NOT USE for real billing)"
+  jurisdiction: "FL"
   practice_area: "general"
+
 billing:
   rate_per_hour: 450
   rounding: "nearest_tenth"
   minimum_increment_hours: 0.1
+
 ethics:
   ai_disclosure_required: true
-  disclosure_text: "Drafting assisted by AI; reviewed and adopted by attorney of record."
+  disclosure_pack: "fl-24-1" # ships verified: false — strict will refuse
+  # disclosure_text intentionally omitted to demonstrate pack flow
+
+# Intentionally broad — home directory.
 routes:
   - "/Users/stephanemacmini"
   - "/Users/stephanemacmini/Documents/Code/billable-time"

@@ -3,6 +3,9 @@ node_modules/
 *.log
 
 # Lawyer-specific drafts produced by the CLI should stay local.
-# The committed sample-draft.md is intentional; ignore everything else.
+# The committed samples are intentional demonstrations; ignore everything else.
 out/*
 !out/sample-draft.md
+!out/sample-draft.audit.html
+!out/sample-draft-strict.md
+!out/sample-draft-strict.audit.html
