@@ -29,9 +29,11 @@ The 2026-05-17 dry-run exposed two issues a lawyer would catch immediately:
 
 ## Distribution
 
-- [ ] `git init` + push to `github.com/sboghossian/billable-time` (AGPL-3.0)
-- [ ] Ship web version on Lovable project `732d1712-27ea-4db5-ab1e-9aa8030a7cce`
-- [ ] `/lawvable-submit` once the repo is live
+- [x] `git init` + push to `github.com/sboghossian/billable-time` (AGPL-3.0)
+- [x] Self-contained `web/index.html` browser port (no backend, no deps)
+- [x] Paste-ready Lovable brief at `web/LOVABLE_PROMPT.md`
+- [ ] Scaffold the Lovable project `732d1712` from the brief (Stephane runs)
+- [ ] `/lawvable-submit` once the Lovable URL is live
 - [ ] LinkedIn post — frame as the audit primitive nobody is building
 
 ## Out of scope for v1

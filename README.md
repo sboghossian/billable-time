@@ -70,7 +70,9 @@ A real-data dry-run lives at `out/sample-draft.md` (this Mac mini's actual sessi
 
 ## Web version
 
-See `https://lovable.dev/projects/732d1712-27ea-4db5-ab1e-9aa8030a7cce` for the same workflow as a drag-and-drop web tool (upload JSONL + `matter.yml`, see the diff, accept/edit/reject in browser). Backend-free; the JSONL never leaves the browser.
+A self-contained browser port lives at [`web/index.html`](./web/index.html) — single file, no build, no backend. Open it directly or serve `web/` over any static server. The JSONL never leaves the page.
+
+A polished UX is being scaffolded on Lovable at `https://lovable.dev/projects/732d1712-27ea-4db5-ab1e-9aa8030a7cce`. The paste-ready brief is at [`web/LOVABLE_PROMPT.md`](./web/LOVABLE_PROMPT.md). The bare `web/index.html` is the canonical fallback if Lovable changes direction or drifts on the no-auto-bill / no-AI-narrative contract.
 
 ## Status
 

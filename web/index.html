@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>billable-time — draft reviewable time entries</title>
+    <style>
+      :root {
+        --fg: #1a1a1a;
+        --muted: #5f6368;
+        --line: #d8d8d8;
+        --bg: #fafafa;
+        --accent: #4a3aff;
+        --warn: #b14a00;
+        --warn-bg: #fff4e6;
+        --good-bg: #f0f7f0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font:
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        margin: 0;
+        padding: 32px 24px 96px;
+        max-width: 880px;
+        margin-inline: auto;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 4px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 28px 0 8px;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .strap {
+        background: var(--good-bg);
+        border-left: 3px solid #3a7a3a;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #1a4a1a;
+        margin-bottom: 28px;
+        border-radius: 0 4px 4px 0;
+      }
+      fieldset {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 14px 18px 18px;
+        margin: 0 0 18px;
+        background: white;
+      }
+      legend {
+        font-weight: 600;
+        padding: 0 6px;
+        font-size: 13px;
+      }
+      label.row {
+        display: block;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      label.row input[type="file"],
+      label.row input[type="text"],
+      label.row input[type="number"],
+      label.row input[type="date"],
+      label.row textarea {
+        display: block;
+        margin-top: 4px;
+        font: inherit;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: #fff;
+        width: 100%;
+      }
+      label.row textarea {
+        min-height: 110px;
+        font-family:
+          ui-monospace,
+          SF Mono,
+          Menlo,
+          monospace;
+        font-size: 13px;
+      }
+      label.inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        margin-right: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 9px 18px;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.08);
+      }
+      button.secondary {
+        background: #fff;
+        color: var(--fg);
+        border: 1px solid var(--line);
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .status {
+        color: var(--muted);
+        font-size: 13px;
+        margin-left: 8px;
+      }
+      .rendered {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 20px 24px;
+        margin-top: 12px;
+      }
+      .rendered h1,
+      .rendered h2,
+      .rendered h3 {
+        line-height: 1.3;
+      }
+      .rendered h1 {
+        font-size: 20px;
+        margin-top: 0;
+      }
+      .rendered h2 {
+        font-size: 17px;
+      }
+      .rendered h3 {
+        font-size: 15px;
+        margin-top: 20px;
+      }
+      .rendered blockquote {
+        border-left: 3px solid var(--line);
+        margin: 10px 0;
+        padding: 4px 12px;
+        color: var(--muted);
+      }
+      .rendered blockquote.warn {
+        border-left-color: var(--warn);
+        color: var(--warn);
+        background: var(--warn-bg);
+      }
+      .rendered code {
+        background: #f1f1f1;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 90%;
+      }
+      .rendered hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 22px 0;
+      }
+      .rendered ul {
+        padding-left: 22px;
+      }
+      .rendered li {
+        margin: 3px 0;
+      }
+      details summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      pre.raw {
+        background: #2b2b2b;
+        color: #eee;
+        padding: 14px 16px;
+        border-radius: 6px;
+        font:
+          12px/1.5 ui-monospace,
+          SF Mono,
+          Menlo,
+          monospace;
+        overflow: auto;
+        max-height: 460px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .error {
+        color: #a00;
+        font-size: 13px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>billable-time</h1>
+    <p class="lede">
+      Draft reviewable time entries from Claude Code session logs. Lawyer
+      reviews every row. <strong>Never auto-bills.</strong>
+    </p>
+
+    <div class="strap">
+      Your session files never leave this page. All parsing runs in-browser. No
+      backend, no upload — close the tab and the data is gone.
+    </div>
+
+    <fieldset>
+      <legend>1. Session logs</legend>
+      <label class="row">
+        Claude Code session JSONL files
+        <input
+          type="file"
+          id="sessionInput"
+          multiple
+          accept=".jsonl,application/jsonl,text/plain"
+        />
+      </label>
+      <p class="hint">
+        Usually at <code>~/.claude/projects/&lt;cwd-slug&gt;/*.jsonl</code>.
+        Select one or many; we'll merge.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Matter</legend>
+      <label class="row">
+        Upload <code>matter.yml</code>
+        <input
+          type="file"
+          id="matterFileInput"
+          accept=".yml,.yaml,text/yaml,text/plain"
+        />
+      </label>
+      <p class="hint">Or paste it directly:</p>
+      <label class="row">
+        <textarea
+          id="matterTextInput"
+          placeholder="matter:&#10;  id: 2026-0427&#10;  client: Acme Holdings Ltd&#10;  caption: Acme v. Smith&#10;  jurisdiction: CT&#10;billing:&#10;  rate_per_hour: 450&#10;  minimum_increment_hours: 0.1&#10;ethics:&#10;  ai_disclosure_required: true&#10;  disclosure_text: Drafting assisted by AI; reviewed and adopted by attorney of record.&#10;routes:&#10;  - /Users/you/Documents/Matters/acme-v-smith"
+        ></textarea>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Window &amp; options</legend>
+      <div class="grid">
+        <label class="row"
+          >Since (UTC) <input type="date" id="sinceInput"
+        /></label>
+        <label class="row"
+          >Until (UTC) <input type="date" id="untilInput"
+        /></label>
+        <label class="row"
+          >Idle gap (min)
+          <input type="number" id="idleGapInput" value="5" min="1" max="120"
+        /></label>
+        <label class="row" style="display: flex; align-items: end">
+          <span style="display: flex; align-items: center; gap: 8px">
+            <input type="checkbox" id="snippetInput" />
+            Include prompt snippet in narratives
+          </span>
+        </label>
+      </div>
+      <p class="hint">
+        Prompt snippets <strong>off by default</strong> — Claude history shared
+        across matters can leak. Only enable on a single-matter machine.
+      </p>
+    </fieldset>
+
+    <div class="actions">
+      <button id="generateBtn">Generate draft</button>
+      <button id="downloadBtn" class="secondary" disabled>Download .md</button>
+      <span id="status" class="status"></span>
+    </div>
+    <div id="errorBox" class="error" hidden></div>
+
+    <div id="resultArea" hidden>
+      <h2>Draft</h2>
+      <div id="rendered" class="rendered"></div>
+      <details style="margin-top: 14px">
+        <summary>Raw markdown</summary>
+        <pre id="rawMd" class="raw"></pre>
+      </details>
+    </div>
+
+    <script type="module">
+      // ---------- pure logic (ported from draft-entries.mjs) ----------
+
+      function parseYaml(text) {
+        const root = {};
+        const stack = [{ indent: -1, obj: root, key: null }];
+        let arrayCtx = null;
+        const lines = text.split(/\r?\n/);
+        for (let raw of lines) {
+          const line = raw.replace(/\s+#.*$/, "");
+          if (!line.trim()) continue;
+          if (line.trim().startsWith("#")) continue;
+          const indent = line.match(/^(\s*)/)[1].length;
+          const trimmed = line.trim();
+          if (trimmed.startsWith("- ")) {
+            const val = coerce(trimmed.slice(2).trim());
+            if (arrayCtx && arrayCtx.indent < indent) {
+              arrayCtx.arr.push(val);
+              continue;
+            }
+          }
+          arrayCtx = null;
+          while (stack.length > 1 && stack[stack.length - 1].indent >= indent)
+            stack.pop();
+          const top = stack[stack.length - 1].obj;
+          const m = trimmed.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+          if (!m) continue;
+          const key = m[1];
+          const valPart = m[2];
+          if (valPart === "") {
+            top[key] = {};
+            const peekIdx = lines.indexOf(raw) + 1;
+            const next = lines.slice(peekIdx).find((l) => l.trim());
+            if (next && next.trim().startsWith("- ")) {
+              top[key] = [];
+              arrayCtx = { indent, arr: top[key] };
+            } else {
+              stack.push({ indent, obj: top[key], key });
+            }
+          } else {
+            top[key] = coerce(valPart);
+          }
+        }
+        return root;
+      }
+
+      function coerce(v) {
+        v = v.trim();
+        if (/^"(.*)"$/.test(v)) return v.slice(1, -1);
+        if (/^'(.*)'$/.test(v)) return v.slice(1, -1);
+        if (v === "true") return true;
+        if (v === "false") return false;
+        if (v === "null") return null;
+        if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+        return v;
+      }
+
+      function extractText(content) {
+        if (typeof content === "string") return content;
+        if (!Array.isArray(content)) return "";
+        return content
+          .filter((c) => c && c.type === "text" && typeof c.text === "string")
+          .map((c) => c.text)
+          .join("\n")
+          .trim();
+      }
+      function extractTools(content) {
+        if (!Array.isArray(content)) return [];
+        return content
+          .filter((c) => c && c.type === "tool_use" && c.name)
+          .map((c) => ({ name: c.name, input: c.input || {} }));
+      }
+      function extractFiles(tools) {
+        const out = new Set();
+        for (const t of tools) {
+          const fp = t.input?.file_path || t.input?.path;
+          if (typeof fp === "string") out.add(fp);
+        }
+        return [...out];
+      }
+
+      function extractEvents(jsonlTexts) {
+        const events = [];
+        for (const text of jsonlTexts) {
+          for (const raw of text.split(/\r?\n/)) {
+            if (!raw.trim()) continue;
+            let obj;
+            try {
+              obj = JSON.parse(raw);
+            } catch {
+              continue;
+            }
+            if (!obj || !obj.timestamp) continue;
+            const ts = new Date(obj.timestamp);
+            if (isNaN(+ts)) continue;
+            const base = { ts, sessionId: obj.sessionId, cwd: obj.cwd || null };
+            if (obj.type === "user" && obj.message?.content) {
+              events.push({
+                ...base,
+                kind: "user_prompt",
+                text: extractText(obj.message.content),
+              });
+            } else if (obj.type === "assistant" && obj.message?.content) {
+              const tools = extractTools(obj.message.content);
+              events.push({
+                ...base,
+                kind: "assistant_turn",
+                tools: tools.map((t) => t.name),
+                files: extractFiles(tools),
+              });
+            }
+          }
+        }
+        events.sort((a, b) => +a.ts - +b.ts);
+        return events;
+      }
+
+      function normalizeRoute(r) {
+        return r.replace(/\/+$/, "") || r;
+      }
+      function cwdMatchesMatter(cwd, routes) {
+        if (!cwd) return false;
+        const c = cwd.replace(/\/+$/, "") || cwd;
+        return routes.some((r) => c === r || c.startsWith(r + "/"));
+      }
+      function checkRoutes(routes) {
+        const warnings = [];
+        for (const r of routes) {
+          // Heuristic: "/" or a 2-segment path like "/Users/foo" or "C:\Users\foo".
+          const segs = r.split("/").filter(Boolean);
+          if (r === "/" || segs.length <= 2) {
+            warnings.push(
+              `Route \`${r}\` matches your ${r === "/" ? "entire filesystem" : "home or near-home directory"}. Every Claude Code session in this window will be treated as on-matter — including work for other clients or non-billable side projects. Narrow \`matter.yml.routes\` to a specific matter directory before relying on this output.`,
+            );
+          }
+        }
+        return warnings;
+      }
+
+      function clusterIntervals(events, idleGapMs) {
+        const intervals = [];
+        let cur = null;
+        for (const e of events) {
+          if (!cur) {
+            cur = newInterval(e);
+            continue;
+          }
+          const gap = +e.ts - +cur.lastTs;
+          if (gap > idleGapMs) {
+            intervals.push(cur);
+            cur = newInterval(e);
+          } else {
+            addToInterval(cur, e);
+          }
+        }
+        if (cur) intervals.push(cur);
+        return intervals;
+      }
+      function newInterval(e) {
+        const i = {
+          start: e.ts,
+          end: e.ts,
+          lastTs: e.ts,
+          sessionId: e.sessionId,
+          cwd: e.cwd,
+          prompts: [],
+          tools: new Map(),
+          files: new Set(),
+          promptCount: 0,
+          turnCount: 0,
+        };
+        addToInterval(i, e);
+        return i;
+      }
+      function addToInterval(i, e) {
+        i.end = e.ts;
+        i.lastTs = e.ts;
+        if (!i.cwd && e.cwd) i.cwd = e.cwd;
+        if (e.kind === "user_prompt") {
+          i.promptCount++;
+          if (e.text) i.prompts.push(e.text);
+        } else if (e.kind === "assistant_turn") {
+          i.turnCount++;
+          for (const t of e.tools || [])
+            i.tools.set(t, (i.tools.get(t) || 0) + 1);
+          for (const f of e.files || []) i.files.add(f);
+        }
+      }
+
+      function synthesizeNarrative(interval, opts = {}) {
+        const verbs = [];
+        const toolNames = [...interval.tools.keys()];
+        const has = (n) => toolNames.includes(n);
+        if (has("Edit") || has("Write") || has("NotebookEdit"))
+          verbs.push("drafted and revised");
+        if (has("Read")) verbs.push("reviewed");
+        if (has("Grep") || has("Glob") || has("WebSearch"))
+          verbs.push("researched");
+        if (has("Bash")) verbs.push("ran analysis");
+        if (verbs.length === 0) verbs.push("analyzed and corresponded on");
+        const lead = verbs.join("; ").replace(/^./, (c) => c.toUpperCase());
+        const promptHint = opts.includePromptSnippet
+          ? headlineFromPrompts(interval.prompts)
+          : "";
+        const fileHint = describeFiles([...interval.files]);
+        const parts = [
+          `${lead} matter-related work product${promptHint ? ` — ${promptHint}` : ""}.`,
+        ];
+        if (fileHint) parts.push(fileHint);
+        parts.push(
+          `Reviewed AI-assisted output and adopted as own work product.`,
+        );
+        return parts.join(" ");
+      }
+      function headlineFromPrompts(prompts) {
+        if (!prompts.length) return "";
+        const first = prompts.find((p) => p && p.length > 8) || prompts[0];
+        const oneLine = first
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const capped =
+          oneLine.length > 100 ? oneLine.slice(0, 97) + "..." : oneLine;
+        return capped.replace(/[|]/g, "/");
+      }
+      function describeFiles(files) {
+        if (!files.length) return "";
+        const base = (f) => f.split("/").pop();
+        const shown = files.slice(0, 3).map(base).join(", ");
+        const extra = files.length > 3 ? ` (+${files.length - 3} more)` : "";
+        return `Files touched: ${shown}${extra}.`;
+      }
+      function roundTenth(h) {
+        return Math.round(h * 10) / 10;
+      }
+      function fmt(ts) {
+        return new Date(ts)
+          .toISOString()
+          .replace("T", " ")
+          .replace(/\.\d+Z$/, "Z");
+      }
+      function dur(ms) {
+        const m = Math.round(ms / 60000);
+        const h = Math.floor(m / 60);
+        const mm = m % 60;
+        return h > 0 ? `${h}h${mm}m` : `${mm}m`;
+      }
+
+      function render({
+        matter,
+        intervals,
+        excluded,
+        options,
+        sourceCount,
+        warnings = [],
+      }) {
+        const m = matter.matter || {};
+        const ethics = matter.ethics || {};
+        const billing = matter.billing || {};
+        const disclosureRequired = !!ethics.ai_disclosure_required;
+        const totalHours = intervals.reduce(
+          (acc, i) => acc + roundTenth((+i.end - +i.start) / 3600000),
+          0,
+        );
+        const lines = [];
+        lines.push(
+          `# Draft time entries — ${m.caption || m.id || "unspecified matter"}`,
+        );
+        lines.push("");
+        lines.push(
+          `> Generated by \`billable-time\` ${new Date().toISOString().slice(0, 10)}. **Nothing has been billed.** Each row below is a proposal. Mark each row \`accept\` / \`edit\` / \`reject\` before exporting to Clio.`,
+        );
+        lines.push("");
+        if (warnings.length) {
+          lines.push(
+            "> ⚠️ **Routing warnings — review before treating any row as on-matter:**",
+          );
+          for (const w of warnings) lines.push(`> - ${w}`);
+          lines.push("");
+        }
+        lines.push(
+          `**Matter:** ${m.id || "—"}  ·  **Client:** ${m.client || "—"}  ·  **Jurisdiction:** ${m.jurisdiction || "—"}  ·  **Rate:** ${billing.rate_per_hour ? `$${billing.rate_per_hour}/h` : "—"}`,
+        );
+        lines.push("");
+        lines.push(
+          `**AI disclosure required:** ${disclosureRequired ? "yes" : "no"}  ·  **Idle-gap threshold:** ${options.idleGapMin} min  ·  **Rounding:** nearest 0.1h  ·  **Prompt snippet in narrative:** ${options.includePromptSnippet ? "on" : "off (default)"}`,
+        );
+        lines.push("");
+        lines.push(
+          `**Window:** ${options.since || "(default 24h ago)"} → ${options.until || "(today)"}  ·  **Source files:** ${sourceCount}  ·  **Proposed total: ${totalHours.toFixed(1)}h**`,
+        );
+        lines.push("");
+        lines.push("---");
+        lines.push("");
+        if (intervals.length === 0) {
+          lines.push(
+            "_No on-matter intervals detected in window. See **Excluded** below._",
+          );
+        } else {
+          lines.push("## Proposed entries");
+          lines.push("");
+          intervals.forEach((i, idx) => {
+            const hours = roundTenth((+i.end - +i.start) / 3600000);
+            const minHours = billing.minimum_increment_hours || 0.1;
+            const billable = Math.max(hours, minHours);
+            lines.push(
+              `### ${String(idx + 1).padStart(2, "0")}. ${fmt(i.start)} → ${fmt(i.end)}  ·  ${dur(+i.end - +i.start)}  ·  **${billable.toFixed(1)}h**`,
+            );
+            lines.push("");
+            lines.push(
+              `- **Status:** \`[ ] accept    [ ] edit    [ ] reject\``,
+            );
+            lines.push(
+              `- **Narrative (draft, lawyer edits):** ${synthesizeNarrative(i, { includePromptSnippet: options.includePromptSnippet })}`,
+            );
+            if (disclosureRequired && ethics.disclosure_text) {
+              lines.push(`- **AI disclosure:** ${ethics.disclosure_text}`);
+            }
+            lines.push(
+              `- **Signals:** ${i.promptCount} prompts · ${i.turnCount} assistant turns · ${i.files.size} files touched · cwd \`${i.cwd || "?"}\``,
+            );
+            lines.push("");
+          });
+        }
+        lines.push("---");
+        lines.push("");
+        lines.push("## Excluded (for your review — not billed by default)");
+        lines.push("");
+        if (excluded.length === 0) lines.push("_Nothing excluded in window._");
+        else for (const x of excluded) lines.push(`- ${x}`);
+        lines.push("");
+        lines.push("---");
+        lines.push("");
+        lines.push("## Ethics note");
+        lines.push("");
+        lines.push(
+          "This tool does not bill. It produces a reviewable draft. Time, narrative, and AI-disclosure language are subject to attorney review. The attorney of record is responsible for the final entries submitted to the client and the billing system.",
+        );
+        return lines.join("\n");
+      }
+
+      function generate({ jsonlTexts, matterText, options }) {
+        const matter = parseYaml(matterText || "");
+        const routes = (matter.routes || []).map(normalizeRoute);
+        const warnings = checkRoutes(routes);
+
+        const since = options.since
+          ? new Date(options.since + "T00:00:00Z")
+          : new Date(Date.now() - 24 * 3600 * 1000);
+        const until = options.until
+          ? new Date(options.until + "T23:59:59.999Z")
+          : new Date();
+
+        const allEvents = extractEvents(jsonlTexts);
+        const inWindow = allEvents.filter(
+          (e) => e.ts >= since && e.ts <= until,
+        );
+        const onMatter = inWindow.filter((e) =>
+          cwdMatchesMatter(e.cwd, routes),
+        );
+        const offMatter = inWindow.filter(
+          (e) => !cwdMatchesMatter(e.cwd, routes),
+        );
+
+        const idleGapMs = options.idleGapMin * 60 * 1000;
+        const intervals = clusterIntervals(onMatter, idleGapMs);
+
+        const excluded = [];
+        const filtered = intervals.filter((i) => {
+          const hrs = (+i.end - +i.start) / 3600000;
+          if (hrs < 0.05 && i.promptCount <= 1) {
+            excluded.push(
+              `${fmt(i.start)} (${i.promptCount} prompt) — trivial, below 0.05h. Skipped.`,
+            );
+            return false;
+          }
+          return true;
+        });
+        const byCwd = new Map();
+        for (const e of offMatter) {
+          const k = e.cwd || "(no cwd)";
+          byCwd.set(k, (byCwd.get(k) || 0) + 1);
+        }
+        for (const [k, n] of byCwd.entries()) {
+          excluded.push(
+            `Off-matter (cwd \`${k}\`) — ${n} events. Add to \`matter.yml.routes\` if this belongs to this matter.`,
+          );
+        }
+        for (let idx = 1; idx < filtered.length; idx++) {
+          const gap = +filtered[idx].start - +filtered[idx - 1].end;
+          const gapMin = Math.round(gap / 60000);
+          if (gapMin >= options.idleGapMin && gapMin >= 30) {
+            excluded.push(
+              `Idle gap ${gapMin} min between ${fmt(filtered[idx - 1].end)} and ${fmt(filtered[idx].start)} — not billed (over idle threshold).`,
+            );
+          }
+        }
+
+        const md = render({
+          matter,
+          intervals: filtered,
+          excluded,
+          options,
+          sourceCount: jsonlTexts.length,
+          warnings,
+        });
+        return {
+          markdown: md,
+          counts: {
+            intervals: filtered.length,
+            onMatter: onMatter.length,
+            offMatter: offMatter.length,
+          },
+        };
+      }
+
+      // ---------- UI ----------
+
+      const $ = (id) => document.getElementById(id);
+
+      function mdToHtml(md) {
+        // Minimal renderer for our known output shape. NOT a general md->html.
+        const esc = (s) =>
+          s.replace(
+            /[&<>]/g,
+            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+          );
+        const lines = md.split("\n");
+        const out = [];
+        let inList = false;
+        let inBlockquote = false;
+        let blockquoteClass = "";
+        const flushList = () => {
+          if (inList) {
+            out.push("</ul>");
+            inList = false;
+          }
+        };
+        const flushBlockquote = () => {
+          if (inBlockquote) {
+            out.push("</blockquote>");
+            inBlockquote = false;
+            blockquoteClass = "";
+          }
+        };
+        const inline = (s) =>
+          esc(s)
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+        for (const ln of lines) {
+          if (/^---\s*$/.test(ln)) {
+            flushList();
+            flushBlockquote();
+            out.push("<hr/>");
+            continue;
+          }
+          if (/^# /.test(ln)) {
+            flushList();
+            flushBlockquote();
+            out.push(`<h1>${inline(ln.slice(2))}</h1>`);
+            continue;
+          }
+          if (/^## /.test(ln)) {
+            flushList();
+            flushBlockquote();
+            out.push(`<h2>${inline(ln.slice(3))}</h2>`);
+            continue;
+          }
+          if (/^### /.test(ln)) {
+            flushList();
+            flushBlockquote();
+            out.push(`<h3>${inline(ln.slice(4))}</h3>`);
+            continue;
+          }
+          if (/^> /.test(ln)) {
+            flushList();
+            const text = ln.slice(2);
+            const isWarn = /⚠️|Routing warnings/.test(text);
+            if (!inBlockquote || (isWarn && !blockquoteClass)) {
+              flushBlockquote();
+              blockquoteClass = isWarn ? ' class="warn"' : "";
+              out.push(`<blockquote${blockquoteClass}>`);
+              inBlockquote = true;
+            }
+            out.push(inline(text) + "<br/>");
+            continue;
+          }
+          if (/^- /.test(ln)) {
+            flushBlockquote();
+            if (!inList) {
+              out.push("<ul>");
+              inList = true;
+            }
+            out.push(`<li>${inline(ln.slice(2))}</li>`);
+            continue;
+          }
+          flushList();
+          flushBlockquote();
+          if (ln.trim() === "") out.push("<p></p>");
+          else out.push(`<p>${inline(ln)}</p>`);
+        }
+        flushList();
+        flushBlockquote();
+        return out.join("\n");
+      }
+
+      async function readFiles(files) {
+        return Promise.all([...files].map((f) => f.text()));
+      }
+
+      function setStatus(msg) {
+        $("status").textContent = msg;
+      }
+      function setError(msg) {
+        const box = $("errorBox");
+        if (!msg) {
+          box.hidden = true;
+          box.textContent = "";
+          return;
+        }
+        box.hidden = false;
+        box.textContent = msg;
+      }
+
+      let lastMarkdown = "";
+
+      $("generateBtn").addEventListener("click", async () => {
+        setError("");
+        setStatus("");
+        $("resultArea").hidden = true;
+
+        const sessionFiles = $("sessionInput").files;
+        if (!sessionFiles || sessionFiles.length === 0) {
+          setError("Pick at least one .jsonl session file.");
+          return;
+        }
+        let matterText = "";
+        const matterFile = $("matterFileInput").files?.[0];
+        if (matterFile) matterText = await matterFile.text();
+        else matterText = $("matterTextInput").value.trim();
+        if (!matterText) {
+          setError("Upload or paste a matter.yml.");
+          return;
+        }
+
+        setStatus("parsing…");
+        let jsonlTexts;
+        try {
+          jsonlTexts = await readFiles(sessionFiles);
+        } catch (e) {
+          setError(`Could not read session files: ${e.message}`);
+          setStatus("");
+          return;
+        }
+
+        const options = {
+          since: $("sinceInput").value || null,
+          until: $("untilInput").value || null,
+          idleGapMin: Number($("idleGapInput").value) || 5,
+          includePromptSnippet: $("snippetInput").checked,
+        };
+
+        let result;
+        try {
+          result = generate({ jsonlTexts, matterText, options });
+        } catch (e) {
+          setError(`Generation failed: ${e.message}`);
+          setStatus("");
+          return;
+        }
+
+        lastMarkdown = result.markdown;
+        $("rendered").innerHTML = mdToHtml(result.markdown);
+        $("rawMd").textContent = result.markdown;
+        $("resultArea").hidden = false;
+        $("downloadBtn").disabled = false;
+        setStatus(
+          `${result.counts.intervals} intervals · ${result.counts.onMatter} on-matter events · ${result.counts.offMatter} off-matter`,
+        );
+      });
+
+      $("downloadBtn").addEventListener("click", () => {
+        if (!lastMarkdown) return;
+        const blob = new Blob([lastMarkdown], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `draft-${new Date().toISOString().slice(0, 10)}.md`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>
